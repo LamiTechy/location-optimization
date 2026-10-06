@@ -17,7 +17,17 @@ export type Db = NeonHttpDatabase<Schema>;
 export type DbDriver = "neon" | "pglite";
 
 function driver(): DbDriver {
-  return process.env.DB_DRIVER === "pglite" ? "pglite" : "neon";
+  if (process.env.DB_DRIVER !== "pglite") return "neon";
+  if (process.env.NODE_ENV === "production") {
+    // Fails loudly instead of silently opening a throwaway embedded database
+    // on a serverless host. Deliberately worded so it is logged as a plain
+    // configuration error, not mistaken for a corrupt data directory.
+    throw new Error(
+      "The embedded database driver is for local development only. " +
+        "Remove DB_DRIVER from this environment and set DATABASE_URL instead.",
+    );
+  }
+  return "pglite";
 }
 
 function buildNeon(): Db {

@@ -41,10 +41,15 @@ export async function handleRoute(
       resetDb();
       console.error(`[db] ${DB_RECOVERY_HINT}`);
       console.error("[api] database error:", error);
+      // Dev instructions are only useful (and true) for the local driver in
+      // development - a deployed user must never be told to restart a dev
+      // server they do not have.
+      const localDevDb =
+        process.env.NODE_ENV !== "production" && process.env.DB_DRIVER === "pglite";
       return jsonError(
         503,
         "DB_UNAVAILABLE",
-        process.env.DB_DRIVER === "pglite"
+        localDevDb
           ? "The local database stopped responding. Restart the dev server " +
             "(run `npm run db:reset` first if the error persists), then try again."
           : "The database is unavailable. Please try again shortly.",
