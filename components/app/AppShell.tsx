@@ -143,9 +143,12 @@ export function AppShell({
             <button
               type="button"
               onClick={logout}
-              className="tap hidden items-center gap-1.5 rounded-lg border border-line px-3 text-sm font-semibold text-ink-muted transition hover:bg-surface-3 hover:text-ink lg:inline-flex"
+              aria-label="Sign out"
+              title="Sign out"
+              className="tap inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 text-sm font-semibold text-ink-muted transition hover:bg-surface-3 hover:text-ink sm:px-3"
             >
-              <LogOut className="size-4" aria-hidden /> Sign out
+              <LogOut className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </header>

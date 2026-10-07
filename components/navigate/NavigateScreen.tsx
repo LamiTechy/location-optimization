@@ -394,7 +394,32 @@ export function NavigateScreen({
     if (!routeKey || !from || !to) return;
     if (routeResult?.key === routeKey) return;
     if (inFlight.current === routeKey) return;
-    inFlight.current = routeKey;
+
+    /*
+     * A place id kept in this browser (recents, favourites, shared link) may
+     * predate the current database. Drop it here rather than requesting a
+     * route the server can only answer with 404 UNKNOWN_LOCATION.
+     * Skipped when the directory is empty or possibly truncated (limit 100).
+     */
+    if (locations.length > 0 && locations.length < 100) {
+      const stale = [from, to].find(
+        (place) =>
+          place.type === "location" &&
+          !locations.some((row) => row.id === place.id),
+      );
+      if (stale?.type === "location") {
+        const label = stale.name.startsWith("Place #")
+          ? "That place"
+          : `"${stale.name}"`;
+        toast.error(`${label} is no longer in the campus directory`);
+        // Deferred: an effect must not setState synchronously (lint rule).
+        queueMicrotask(() => {
+          if (stale === from) applyFrom(null);
+          else applyTo(null);
+        });
+        return;
+      }
+    }
 
     const id = ++requestId.current;
 
@@ -412,6 +437,23 @@ export function NavigateScreen({
       .catch((error: unknown) => {
         if (id !== requestId.current) return;
         if (error instanceof ApiError) {
+          /*
+           * The place disappeared from the database after this page loaded
+           * (directory not fetched yet, or its row was deleted). Clear the
+           * field so the stale id cannot fire the same 404 on every retry.
+           */
+          if (error.code === "UNKNOWN_LOCATION") {
+            const startGone = error.message.toLowerCase().includes("start");
+            const gone = startGone ? from : to;
+            const label =
+              gone && gone.type === "location" && !gone.name.startsWith("Place #")
+                ? `"${gone.name}"`
+                : "That place";
+            toast.error(`${label} is no longer in the campus directory`);
+            if (startGone) applyFrom(null);
+            else applyTo(null);
+            return;
+          }
           setRouteResult({
             key: routeKey,
             route: null,
@@ -431,7 +473,7 @@ export function NavigateScreen({
       .finally(() => {
         if (id === requestId.current) inFlight.current = null;
       });
-  }, [routeKey, from, to, routeResult, toast]);
+  }, [routeKey, from, to, routeResult, toast, locations, applyFrom, applyTo]);
 
   /* Shareable URL (replaceState: no server round-trip, no state reset). */
   useEffect(() => {
